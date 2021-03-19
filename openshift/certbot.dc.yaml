@@ -4,21 +4,8 @@ kind: Template
 labels:
   app: certbot
 metadata:
-  name: certbot
-
+  name: certbot-${APPLICATION_NAME}
 objects:
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: certbot-egress-internet
-    spec:
-      description: |
-        Allow certbot pods to open connections to the internet
-      source:
-        - - "$namespace=${NAMESPACE}"
-          - "app=certbot"
-      destination:
-        - - ext:network=any
   - apiVersion: v1
     kind: ServiceAccount
     metadata:
@@ -36,18 +23,18 @@ objects:
   - apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
-      name: certbot
+      name: certbot-${APPLICATION_NAME}
     spec:
       storageClassName: netapp-file-standard
       accessModes:
         - ReadWriteMany
       resources:
         requests:
-          storage: 1Gi
+          storage: 100Mi
   - apiVersion: batch/v1beta1
     kind: CronJob
     metadata:
-      name: certbot
+      name: certbot-${APPLICATION_NAME}
     spec:
       concurrencyPolicy: Replace
       failedJobsHistoryLimit: 3
@@ -66,7 +53,7 @@ objects:
                 app: certbot
             spec:
               containers:
-                - name: certbot
+                - name: certbot-${APPLICATION_NAME}
                   image: "${IMAGE_REGISTRY}/${NAMESPACE}/${SOURCE_IMAGE_NAME}:${TAG_NAME}"
                   imagePullPolicy: Always
                   env:
@@ -82,6 +69,8 @@ objects:
                       value: "${DRYRUN}"
                     - name: CERTBOT_SERVER
                       value: "${CERTBOT_SERVER}"
+                    - name: APPLICATION_NAME
+                      value: "${APPLICATION_NAME}"
                   resources:
                     requests:
                       cpu: 50m
@@ -95,7 +84,7 @@ objects:
               volumes:
                 - name: certbot-config
                   persistentVolumeClaim:
-                    claimName: certbot
+                    claimName: certbot-${APPLICATION_NAME}
       schedule: "${CERTBOT_CRON_SCHEDULE}"
       suspend: "${{CERTBOT_SUSPEND_CRON}}"
 
@@ -141,3 +130,5 @@ parameters:
   - name: "TAG_NAME"
     required: false
     value: "latest"
+  - name: "APPLICATION_NAME"
+    required: true

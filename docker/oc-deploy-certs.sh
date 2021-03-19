@@ -93,8 +93,14 @@ objects:
     wildcardPolicy: None
 EOF
 
+if [ -z "$APPLICATION_NAME" ]
+then
+  echo 'APPLICATION_NAME env not set, exiting'
+  exit 1
+fi
+
 #Prepare list of domains
-oc get route -l certbot-managed=true -o json | jq '.items[].spec.host' -r | sort -f | uniq -iu > /tmp/certbot-hosts.txt
+oc get route -l certbot-managed=true,application=$APPLICATION_NAME -o json | jq '.items[].spec.host' -r | sort -f | uniq -iu > /tmp/certbot-hosts.txt
 cat /tmp/certbot-hosts.txt | paste -sd "," - > /tmp/certbot-hosts.csv
 
 echo 'CERTBOT_DEBUG =' $CERTBOT_DEBUG
@@ -117,7 +123,7 @@ if [ "${CERTBOT_DEBUG}" == "true" ]; then
 fi
 
 #List of Routes
-oc get route -l certbot-managed=true -o json | jq '.items[].metadata.name' -r > /tmp/certbot-routes.txt
+oc get route -l certbot-managed=true,application=$APPLICATION_NAME -o json | jq '.items[].metadata.name' -r > /tmp/certbot-routes.txt
 
 # Delete well-known/acme-challenge routes
 oc delete route,svc -l app=certbot,well-known=acme-challenge
